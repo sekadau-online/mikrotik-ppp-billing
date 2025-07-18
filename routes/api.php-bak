@@ -1,0 +1,12 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\PppUserController;
+
+// Route::prefix('ppp')->group(function () {
+//     Route::post('/create', [PppUserController::class, 'store']);
+//     Route::post('/reactivate/{user}', [PppUserController::class, 'reactivate']);
+// });
+Route::get('/cek', function () {
+    return response()->json(['status' => 'ok']);
+});
