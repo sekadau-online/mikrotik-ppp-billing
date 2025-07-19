@@ -1,0 +1,192 @@
+<?php
+
+namespace App\Http\Controllers\Api; // Pastikan namespace ini benar
+
+use App\Http\Controllers\Controller; // Import base Controller
+use Illuminate\Http\Request;
+use App\Services\MidtransService; // Pastikan MidtransService sudah dibuat
+use App\Models\PppUser; // Pastikan model PppUser ada
+use App\Models\Payment; // Pastikan model Payment ada
+use Exception;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+
+class PaymentController extends Controller
+{
+    protected $midtransService;
+
+    public function __construct(MidtransService $midtransService)
+    {
+        $this->midtransService = $midtransService;
+    }
+
+    // Method untuk memproses pembayaran (sesuai routes/api.php)
+    public function processPayment(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:ppp_users,id',
+            'amount' => 'required|numeric|min:10000',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $user = PppUser::find($request->user_id);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Pengguna tidak ditemukan.'], 404);
+        }
+
+        $orderId = 'TRX-' . $user->id . '-' . time() . '-' . uniqid();
+
+        $transactionDetails = [
+            'order_id' => $orderId,
+            'gross_amount' => (int) $request->amount,
+        ];
+
+        $customerDetails = [
+            'first_name' => $user->username,
+            // 'email' => $user->email ?? 'no-email@example.com', // Uncomment if user has email
+            // 'phone' => $user->phone_number ?? '08123456789', // Uncomment if user has phone number
+        ];
+
+        $itemDetails = [
+            [
+                'id' => 'payment-item-' . time(),
+                'price' => (int) $request->amount,
+                'quantity' => 1,
+                'name' => $request->description ?: 'Pembayaran Transaksi Umum'
+            ]
+        ];
+
+        try {
+            // Callback URLs for Midtrans to redirect user after payment
+            // Pastikan URL ini sesuai dengan route web yang Anda buat
+            $callbacks = [
+                'finish' => config('services.midtrans.redirect_finish') . '?order_id=' . $orderId,
+                'error' => config('services.midtrans.redirect_error') . '?order_id=' . $orderId,
+                'pending' => config('services.midtrans.redirect_pending') . '?order_id=' . $orderId,
+            ];
+
+            $snap = $this->midtransService->createTransaction($transactionDetails, $customerDetails, $itemDetails, $callbacks);
+
+            // Simpan transaksi ke database Anda dengan status 'pending'
+            Payment::create([
+                'user_id' => $user->id,
+                'order_id' => $orderId,
+                'amount' => $request->amount,
+                'description' => $request->description,
+                'status' => 'pending',
+                'snap_token' => $snap->token,
+            ]);
+
+            return response()->json(['success' => true, 'snap_token' => $snap->token]);
+
+        } catch (Exception $e) {
+            Log::error("Error processing payment: " . $e->getMessage() . " - " . $e->getFile() . " on line " . $e->getLine());
+            return response()->json(['success' => false, 'message' => 'Gagal membuat transaksi Midtrans: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // Method untuk menangani notifikasi Midtrans (webhook) (sesuai routes/api.php)
+    public function handleMidtransCallback(Request $request)
+    {
+        try {
+            $notif = $this->midtransService->getNotification();
+
+            $transactionStatus = $notif->transaction_status;
+            $orderId = $notif->order_id;
+            $fraudStatus = $notif->fraud_status;
+
+            Log::info("Midtrans Notification received for Order ID: " . $orderId . ", Status: " . $transactionStatus . ", Fraud: " . $fraudStatus);
+
+            $payment = Payment::where('order_id', $orderId)->first();
+
+            if (!$payment) {
+                Log::warning("Midtrans Notification: Order ID " . $orderId . " not found in payments table.");
+                return response()->json(['message' => 'Payment not found'], 404);
+            }
+
+            // Avoid double processing
+            if ($payment->status === 'success' || $payment->status === 'settlement') {
+                Log::info("Midtrans Notification: Order ID " . $orderId . " already processed with status " . $payment->status);
+                return response()->json(['message' => 'Already processed'], 200);
+            }
+
+            // Determine new status
+            $newStatus = 'pending'; // Default status
+            if ($transactionStatus == 'capture') {
+                $newStatus = ($fraudStatus == 'challenge') ? 'challenge' : 'success';
+            } elseif ($transactionStatus == 'settlement') {
+                $newStatus = 'success';
+            } elseif ($transactionStatus == 'pending') {
+                $newStatus = 'pending';
+            } elseif ($transactionStatus == 'deny') {
+                $newStatus = 'failed';
+            } elseif ($transactionStatus == 'expire') {
+                $newStatus = 'expired';
+            } elseif ($transactionStatus == 'cancel') {
+                $newStatus = 'cancelled';
+            }
+
+            $payment->status = $newStatus;
+            $payment->payment_gateway_response = json_encode($notif->getResponse()); // Save full response
+            $payment->save();
+
+            // Apply business logic only if payment is now successful
+            if ($payment->status === 'success') {
+                $user = PppUser::find($payment->user_id);
+                if ($user) {
+                    if (str_contains(strtolower($payment->description), 'paket')) {
+                        // Logic for package renewal/upgrade
+                        // This part needs to be robust. Best to store package_id in payment.
+                        $currentPackage = $user->package; // Load user's current package
+                        if ($currentPackage) {
+                            if ($payment->amount == $currentPackage->price) {
+                                // Renew current package
+                                $newExpiredDate = $user->expired_at ?
+                                    Carbon::parse($user->expired_at)->addDays($currentPackage->duration_days) :
+                                    Carbon::now()->addDays($currentPackage->duration_days);
+                                
+                                $user->expired_at = $newExpiredDate;
+                                $user->status = 'active';
+                                $user->save();
+                                Log::info("User " . $user->username . " package " . $currentPackage->name . " extended until " . $user->expired_at->format('Y-m-d'));
+                            } else {
+                                Log::warning("Payment amount mismatch for package renewal for user " . $user->username . ". Further action needed.");
+                                // Handle cases where amount is different (e.g., package upgrade)
+                                // You might need to parse description or store a package_id in the payment record.
+                            }
+                        } else {
+                            Log::info("User " . $user->username . " purchased package but had no prior package. Manual package assignment might be needed.");
+                            // User bought a package but had no package, assign the package (requires identifying which package was bought)
+                        }
+                    } else {
+                        // Logic for balance deposit
+                        $user->balance += $payment->amount;
+                        $user->save();
+                        Log::info("User " . $user->username . " deposited Rp" . $payment->amount . ". New balance: Rp" . $user->balance);
+                    }
+                } else {
+                    Log::error("User with ID " . $payment->user_id . " not found for payment ID " . $payment->id . " after successful payment.");
+                }
+            }
+            return response()->json(['message' => 'Notification handled successfully'], 200);
+
+        } catch (Exception $e) {
+            Log::error("Error handling Midtrans notification: " . $e->getMessage() . " - " . $e->getFile() . " on line " . $e->getLine());
+            return response()->json(['message' => 'Error processing notification'], 500);
+        }
+    }
+
+    // Method untuk mendapatkan riwayat pembayaran (sesuai routes/api.php)
+    public function paymentHistory($userId)
+    {
+        try {
+            $payments = Payment::where('user_id', $userId)
+                               ->orderBy('created_at', 'desc')
+                               ->get();
+            return response()->json(['success' => true, 'data' => $payments]);
+        } catch (\Exception $e) {
+            Log::error("Error in PaymentController@paymentHistory for user " . $userId . ": " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal memuat riwayat pembayaran.'], 500);
+        }
+    }
+}

@@ -15,20 +15,26 @@ return new class extends Migration {
             $table->string('profile');
             $table->string('local_address');
             $table->string('remote_address');
-            $table->string('phone');
-            $table->string('email');
-            $table->text('address');
+            $table->string('phone')->nullable();
+            $table->string('email')->nullable();
+            $table->text('address')->nullable();
             $table->dateTime('activated_at')->nullable();
             $table->dateTime('expired_at')->nullable();
             $table->date('due_date')->nullable();
             $table->integer('grace_period_days')->default(7);
             $table->dateTime('suspended_at')->nullable();
-            $table->timestamp('restored_at')->nullable();
-            $table->decimal('balance', 10, 2)->default(0);
-            $table->json('payment_history')->nullable();
-            $table->enum('status', ['active', 'suspended', 'expired'])->default('active');
+            $table->dateTime('restored_at')->nullable();
+            $table->decimal('balance', 12, 2)->default(0);
+            $table->enum('status', ['active', 'suspended', 'expired', 'pending'])->default('pending');
             $table->foreignId('package_id')->nullable()->constrained()->nullOnDelete();
+            $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
+            
+            // Tambahan index
+            $table->index('status');
+            $table->index('package_id');
+            $table->index('expired_at');
         });
     }
 

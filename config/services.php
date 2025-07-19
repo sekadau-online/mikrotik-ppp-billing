@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'redirect_finish' => env('MIDTRANS_REDIRECT_FINISH_URL'),
+        'redirect_error' => env('MIDTRANS_REDIRECT_ERROR_URL'),
+        'redirect_pending' => env('MIDTRANS_REDIRECT_PENDING_URL'),
+    ],
+
 ];
