@@ -183,7 +183,32 @@ public function store(Request $request)
         }
     }
 
+    // public function destroy(PppUser $pppUser)
+    // {
+    //     DB::beginTransaction();
 
+    //     try {
+    //         // Delete from MikroTik
+    //         $response = $this->mikrotik->suspendUser($pppUser->username);
+    //         if (!$response['success']) {
+    //             throw new \Exception('Gagal menghapus user dari MikroTik');
+    //         }
+
+    //         // Delete from database
+    //         $pppUser->delete();
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'PPP user berhasil dihapus'
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return $this->errorResponse($e);
+    //     }
+    // }
 public function destroy(PppUser $pppUser)
 {
     DB::beginTransaction();
@@ -247,14 +272,13 @@ public function processPayment(Request $request, PppUser $pppUser)
         ], 500);
     }
 
-    // Jika sebelumnya suspend, aktifkan kembali (ganti profile di MikroTik)
+    // Activate in Mikrotik if previously suspended
     if ($wasSuspended) {
-        $mikrotikResponse = $this->mikrotik->changeUserProfile($pppUser->username, $pppUser->profile);
-
-        if (!$mikrotikResponse['success']) {
+        $response = $this->mikrotik->activateUser($pppUser->username);
+        if (!$response['success']) {
             return response()->json([
                 'success' => false,
-                'error' => 'Payment processed but failed to reactivate user in MikroTik: ' . ($mikrotikResponse['data']['message'] ?? 'Unknown error')
+                'error' => 'Payment processed but failed to activate in MikroTik'
             ], 500);
         }
     }

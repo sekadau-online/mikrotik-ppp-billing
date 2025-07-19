@@ -265,11 +265,23 @@ public function deleteUser(string $username): array
         return ['success' => false, 'error' => $e->getMessage()];
     }
 }
+//
+    // public function activateUser(string $username): array
+    // {
+    //     try {
+    //         $query = (new Query('/ppp/secret/enable'))
+    //             ->equal('.name', $username);
+
+    //         $response = $this->client->query($query)->read();
+
+    //         return ['success' => true, 'data' => $response];
+    //     } catch (\Exception $e) {
+    //         return ['success' => false, 'error' => $e->getMessage()];
+    //     }
+    // }
+
 
     // already fixed 02:05 PM Jul 19, 2025
-    // Restore user from suspended state
-    // This method assumes the user was suspended by changing their profile to 'suspend-profile'
-    // and now we want to restore them to their original profile.
 public function restoreUser(string $username, string $profile): array
 {
     try {

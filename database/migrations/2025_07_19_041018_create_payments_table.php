@@ -12,13 +12,20 @@ return new class extends Migration
     public function up(): void
     {
 Schema::create('payments', function (Blueprint $table) {
+    // $table->id();
+    // $table->foreignId('ppp_user_id')->constrained()->cascadeOnDelete();
+    // $table->decimal('amount', 12, 2);
+    // $table->string('payment_method');
+    // $table->string('reference_number')->nullable();
+    // $table->date('date');
+    // $table->string('status')->default('confirmed');
+    // $table->timestamps();
     $table->id();
-    $table->foreignId('ppp_user_id')->constrained()->cascadeOnDelete();
-    $table->decimal('amount', 12, 2);
-    $table->string('payment_method');
-    $table->string('reference_number')->nullable();
-    $table->date('date');
-    $table->string('status')->default('confirmed');
+    $table->foreignId('ppp_user_id')->constrained()->onDelete('cascade');
+    $table->decimal('amount', 10, 2);
+    $table->string('method');
+    $table->string('reference');
+    $table->dateTime('date');
     $table->timestamps();
 });
     }

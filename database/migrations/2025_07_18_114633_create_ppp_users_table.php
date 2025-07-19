@@ -13,34 +13,27 @@ return new class extends Migration {
             $table->string('password');
             $table->string('service')->default('pppoe');
             $table->string('profile');
-            $table->ipAddress('local_address');
-            $table->ipAddress('remote_address')->unique();
+            $table->string('local_address');
+            $table->string('remote_address');
             $table->string('phone');
             $table->string('email');
             $table->text('address');
-            $table->date('activated_at')->nullable();
-            $table->date('expired_at')->nullable();
+            $table->dateTime('activated_at')->nullable();
+            $table->dateTime('expired_at')->nullable();
             $table->date('due_date')->nullable();
             $table->integer('grace_period_days')->default(7);
-            $table->date('suspended_at')->nullable();
-            $table->timestamp('restored_at')->nullable()->after('suspended_at');
+            $table->dateTime('suspended_at')->nullable();
+            $table->timestamp('restored_at')->nullable();
             $table->decimal('balance', 10, 2)->default(0);
             $table->json('payment_history')->nullable();
             $table->enum('status', ['active', 'suspended', 'expired'])->default('active');
-            
-            // Ubah menjadi nullable dulu untuk migrasi awal
-            $table->foreignId('package_id')->nullable()->constrained();
-            
+            $table->foreignId('package_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }
 
     public function down()
     {
-        Schema::table('ppp_users', function (Blueprint $table) {
-            $table->dropForeign(['package_id']);
-        });
-        
         Schema::dropIfExists('ppp_users');
     }
 };

@@ -27,12 +27,9 @@ class RestorePaidUsers extends Command
         $restoredCount = 0;
 
         foreach ($usersToRestore as $user) {
-            $packagePrice = (float) ($user->package->price ?? 0); // Harga paket
-            $balance = (float) $user->balance; // Saldo user (pastikan float)
+            $packagePrice = $user->package->price ?? 0;
 
-            info("Memeriksa user: {$user->username}, balance: {$balance}, harga paket: {$packagePrice}");
-
-            if ($balance >= $packagePrice) {
+            if ($user->balance >= $packagePrice) {
                 try {
                     $response = $mikrotik->restoreUser($user->username, $user->profile);
 
@@ -42,14 +39,14 @@ class RestorePaidUsers extends Command
                             'restored_at' => now(),
                             'expired_at' => now()->addDays($user->package->duration_days),
                             'due_date' => now()->addDays($user->package->duration_days),
-                            'balance' => $balance - $packagePrice,
+                            'balance' => $user->balance - $packagePrice,
                         ]);
 
                         Log::channel('ppp')->info("User restored after sufficient balance", [
                             'user_id' => $user->id,
                             'username' => $user->username,
                             'deducted' => $packagePrice,
-                            'remaining_balance' => $balance - $packagePrice,
+                            'remaining_balance' => $user->balance,
                         ]);
 
                         $restoredCount++;
@@ -60,7 +57,7 @@ class RestorePaidUsers extends Command
                         ]);
                     }
 
-                    usleep(100000); // Delay 100ms
+                    usleep(100000); // optional delay 100ms
                 } catch (\Exception $e) {
                     Log::channel('ppp')->error("Failed to restore user", [
                         'user_id' => $user->id,

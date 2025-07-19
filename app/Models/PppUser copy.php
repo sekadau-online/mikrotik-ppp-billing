@@ -27,20 +27,26 @@ class PppUser extends Model
         'balance' => 'decimal:2',
     ];
 
+    /**
+     * Relationship to Package
+     */
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
     }
 
+    /**
+     * Relationship to Payments
+     */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
 
     /**
-     * Process payment and update user account
+     * Process a payment and update user account
      */
-    public function processPayment(float $amount, string $method, string $reference, int $durationDays): array
+    public function addPayment(float $amount, string $method, string $reference, int $durationDays): array
     {
         DB::beginTransaction();
 
@@ -78,6 +84,9 @@ class PppUser extends Model
         }
     }
 
+    /**
+     * Check if user should be suspended
+     */
     public function shouldBeSuspended(): bool
     {
         if (in_array($this->status, ['suspended', 'expired'])) {
