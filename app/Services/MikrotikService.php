@@ -135,7 +135,7 @@ public function addUser(array $data): array
     {
         try {
             $query = (new Query('/ppp/secret/disable'))
-                ->equal('.id', $username);
+                ->equal('name', $username);
 
             $response = $this->client->query($query)->read();
 
@@ -144,12 +144,40 @@ public function addUser(array $data): array
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
+public function deleteUser(string $username): array
+{
+    try {
+        // Step 1: Cari user berdasarkan name
+        $findQuery = (new Query('/ppp/secret/print'))
+            ->where('name', $username);
+        $result = $this->client->query($findQuery)->read();
+
+        if (empty($result)) {
+            return ['success' => false, 'error' => 'User not found in MikroTik'];
+        }
+
+        $mikrotikId = $result[0]['.id'];
+
+        // Step 2: Hapus user berdasarkan .id
+        $deleteQuery = (new Query('/ppp/secret/remove'))
+            ->equal('.id', $mikrotikId);
+
+        $response = $this->client->query($deleteQuery)->read();
+
+        return ['success' => true, 'data' => $response];
+    } catch (\Exception $e) {
+        \Log::error('deleteUser error: ' . $e->getMessage(), [
+            'username' => $username
+        ]);
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
 
     public function activateUser(string $username): array
     {
         try {
             $query = (new Query('/ppp/secret/enable'))
-                ->equal('.id', $username);
+                ->equal('.name', $username);
 
             $response = $this->client->query($query)->read();
 

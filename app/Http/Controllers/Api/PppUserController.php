@@ -183,33 +183,60 @@ public function store(Request $request)
         }
     }
 
-    public function destroy(PppUser $pppUser)
-    {
-        DB::beginTransaction();
+    // public function destroy(PppUser $pppUser)
+    // {
+    //     DB::beginTransaction();
 
-        try {
-            // Delete from MikroTik
-            $response = $this->mikrotik->suspendUser($pppUser->username);
-            if (!$response['success']) {
-                throw new \Exception('Gagal menghapus user dari MikroTik');
-            }
+    //     try {
+    //         // Delete from MikroTik
+    //         $response = $this->mikrotik->suspendUser($pppUser->username);
+    //         if (!$response['success']) {
+    //             throw new \Exception('Gagal menghapus user dari MikroTik');
+    //         }
 
-            // Delete from database
-            $pppUser->delete();
+    //         // Delete from database
+    //         $pppUser->delete();
 
-            DB::commit();
+    //         DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'PPP user berhasil dihapus'
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'PPP user berhasil dihapus'
+    //         ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return $this->errorResponse($e);
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return $this->errorResponse($e);
+    //     }
+    // }
+public function destroy(PppUser $pppUser)
+{
+    DB::beginTransaction();
+
+    try {
+        // Delete user from MikroTik
+        $response = $this->mikrotik->deleteUser($pppUser->username);
+
+        if (!$response['success']) {
+            throw new \Exception('Gagal menghapus user dari MikroTik: ' . ($response['error'] ?? 'unknown'));
         }
-    }
 
+        // Delete user from database
+        $pppUser->delete();
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PPP user berhasil dihapus'
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return $this->errorResponse($e);
+    }
+}
+    //
 // Process payment for a PPP user todo :need fixed 
 public function processPayment(Request $request, PppUser $pppUser)
 {
