@@ -23,6 +23,7 @@ return new class extends Migration {
             $table->date('due_date')->nullable();
             $table->integer('grace_period_days')->default(7);
             $table->date('suspended_at')->nullable();
+            $table->timestamp('restored_at')->nullable()->after('suspended_at');
             $table->decimal('balance', 10, 2)->default(0);
             $table->json('payment_history')->nullable();
             $table->enum('status', ['active', 'suspended', 'expired'])->default('active');

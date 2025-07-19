@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('ppp:suspend-unpaid')->dailyAt('03:00');
+        $schedule->command('ppp:restore-paid')->dailyAt('03:00');
     }
 
     protected function commands()

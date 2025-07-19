@@ -210,52 +210,60 @@ public function store(Request $request)
         }
     }
 
-    public function processPayment(Request $request, PppUser $pppUser)
-    {
-        DB::beginTransaction();
+// Process payment for a PPP user todo :need fixed 
+public function processPayment(Request $request, PppUser $pppUser)
+{
+    DB::beginTransaction();
 
-        try {
-            $validator = Validator::make($request->all(), [
-                'amount' => 'required|numeric|min:0',
-                'payment_method' => 'required|string|max:50',
-                'reference' => 'required|string|max:100',
-                'package_id' => 'required|exists:packages,id,is_active,1',
-            ]);
+    try {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0',
+            'payment_method' => 'required|string|max:50',
+            'reference' => 'required|string|max:100',
+            'package_id' => 'required|exists:packages,id,is_active,1',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $pppUser->addPayment(
-                $request->amount,
-                $request->payment_method,
-                $request->reference
-            );
-
-            // Activate if suspended
-            if ($pppUser->was('status', 'suspended')) {
-                $response = $this->mikrotik->activateUser($pppUser->username);
-                if (!$response['success']) {
-                    throw new \Exception('Gagal mengaktifkan user di MikroTik');
-                }
-            }
-
-            DB::commit();
-
+        if ($validator->fails()) {
             return response()->json([
-                'success' => true,
-                'message' => 'Pembayaran berhasil diproses',
-                'data' => $pppUser->fresh()
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return $this->errorResponse($e);
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        // Simpan status sebelum update
+        $wasSuspended = $pppUser->status === 'suspended';
+
+        // Proses pembayaran
+        $pppUser->addPayment(
+            $request->amount,
+            $request->payment_method,
+            $request->reference
+        );
+
+        // Aktifkan jika sebelumnya suspended
+        if ($wasSuspended) {
+            $response = $this->mikrotik->activateUser($pppUser->username);
+            if (!$response['success']) {
+                throw new \Exception('Gagal mengaktifkan user di MikroTik');
+            }
+            
+            $pppUser->update(['status' => 'active']);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pembayaran berhasil diproses',
+            'data' => $pppUser->fresh()
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return $this->errorResponse($e);
     }
+}
+    //
 
     public function overdueUsers()
     {
