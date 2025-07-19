@@ -7,19 +7,28 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
-    protected $commands = [
-        \App\Console\Commands\SuspendUnpaidUsers::class,
-    ];
-
-    protected function schedule(Schedule $schedule)
+    /**
+     * Define the application's command schedule.
+     */
+    protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('ppp:suspend-unpaid')->dailyAt('03:00');
-        $schedule->command('ppp:restore-paid')->dailyAt('03:00');
+        // Jalankan sinkronisasi secret setiap menit
+        $schedule->command('ppp:sync-secrets')->everyMinute()->withoutOverlapping();
+
+        // Jalankan pengecekan suspensi setiap 5 menit (atau sesuai kebutuhan)
+        $schedule->command('ppp:check-suspension')->everyFiveMinutes()->withoutOverlapping();
+
+        // Jalankan pengecekan restorasi setiap 5 menit (atau sesuai kebutuhan)
+        $schedule->command('ppp:check-restoration')->everyFiveMinutes()->withoutOverlapping();
     }
 
-    protected function commands()
+    /**
+     * Register the commands for the application.
+     */
+    protected function commands(): void
     {
         $this->load(__DIR__.'/Commands');
+
         require base_path('routes/console.php');
     }
 }

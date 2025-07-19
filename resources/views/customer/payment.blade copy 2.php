@@ -210,6 +210,7 @@
         const API_BASE = '{{ url('/api') }}';
         let currentUser = null;
         let selectedPackage = null;
+        let availablePackages = [];
         let paymentModal = null;
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -292,7 +293,6 @@
                 document.getElementById('current-package-price').textContent = parseFloat(user.package.price).toLocaleString('id-ID');
             }
         }
-
         async function loadAvailablePackages() {
             try {
                 const packageList = document.getElementById('package-list');
@@ -310,11 +310,11 @@
                 }
                 
                 const response = await packageRes.json();
-                const packages = response.data || response;
+                availablePackages = response.data || response;
                 
                 packageList.innerHTML = '';
                 
-                packages.forEach(pkg => {
+                availablePackages.forEach(pkg => {
                     const packageItem = document.createElement('div');
                     packageItem.className = 'col-md-6 mb-3';
                     packageItem.innerHTML = `

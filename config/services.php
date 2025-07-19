@@ -34,14 +34,53 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    /*
+    |--------------------------------------------------------------------------
+    | Mikrotik Configuration
+    |--------------------------------------------------------------------------
+    */
+    'mikrotik' => [
+        'host' => env('MIKROTIK_HOST', '192.168.1.88'),
+        'port' => (int) env('MIKROTIK_PORT', 8728),
+        'user' => env('MIKROTIK_USER', 'laravel-test'),
+        'pass' => env('MIKROTIK_PASS', '12345'),
+        'timeout' => (int) env('MIKROTIK_TIMEOUT', 10),
+        'attempts' => (int) env('MIKROTIK_ATTEMPTS', 3),
+        'delay' => (float) env('MIKROTIK_DELAY', 1.5),
+        'default_profile' => env('MIKROTIK_DEFAULT_PROFILE', 'default'),
+        'pending_profile' => env('MIKROTIK_PENDING_PROFILE', 'pending'),
+        'legacy' => true, // Required for RouterOS v6 and below
+    ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | SSL Mikrotik Configuration
+    |--------------------------------------------------------------------------
+    */
+    'mikrotik_ssl' => [
+        'enabled' => env('MIKROTIK_SSL_VERIFY', false),
+        'port' => (int) env('MIKROTIK_SSL_PORT', 8729),
+        'timeout' => (int) env('MIKROTIK_SSL_TIMEOUT', 10),
+        'certificate_path' => env('MIKROTIK_SSL_CERTIFICATE_PATH'),
+        'certificate_key_path' => env('MIKROTIK_SSL_CERTIFICATE_KEY_PATH'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Midtrans Configuration
+    |--------------------------------------------------------------------------
+    */
     'midtrans' => [
-        'server_key' => env('MIDTRANS_SERVER_KEY'),
-        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'server_key' => env('MIDTRANS_SERVER_KEY', 'Mid-server-_EY0Z***'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY', 'Mid-client-***'),
         'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
-        'redirect_finish' => env('MIDTRANS_REDIRECT_FINISH_URL'),
-        'redirect_error' => env('MIDTRANS_REDIRECT_ERROR_URL'),
-        'redirect_pending' => env('MIDTRANS_REDIRECT_PENDING_URL'),
+        'is_sanitized' => env('MIDTRANS_SANITIZED', true),
+        'is_3ds' => env('MIDTRANS_3DS', true),
+        'redirect' => [
+            'finish' => env('MIDTRANS_REDIRECT_FINISH_URL', 'http://103.97.199.26:8000/payment-status-success'),
+            'error' => env('MIDTRANS_REDIRECT_ERROR_URL', 'http://103.97.199.26:8000/payment-status-error'),
+            'pending' => env('MIDTRANS_REDIRECT_PENDING_URL', 'http://103.97.199.26:8000/payment-status-pending'),
+        ],
     ],
 
 ];

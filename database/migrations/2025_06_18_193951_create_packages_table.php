@@ -4,32 +4,36 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up()
-    {
-        Schema::create('packages', function (Blueprint $table) {
-    $table->id();
-            $table->string('name');
-            $table->string('code')->unique();
-            $table->string('speed_limit');  // Contoh: '10Mbps/5Mbps'
-            $table->integer('download_speed')->nullable(); // Dalam kbps (10000 = 10Mbps)
-            $table->integer('upload_speed')->nullable();   // Dalam kbps (5000 = 5Mbps)
-            $table->integer('duration_days');
-            $table->decimal('price', 12, 2); // Diubah ke 12 digit untuk nilai besar
-            $table->text('description')->nullable();
-            $table->json('features')->nullable(); // Fitur dalam format JSON
-            $table->boolean('is_active')->default(true);
-            $table->integer('sort_order')->default(0); // Untuk pengurutan tampilan
-            $table->softDeletes(); // Tambahkan soft delete
-            $table->timestamps();
-            
-            // Index tambahan
-            $table->index('is_active');
-            $table->index('price');
-        });
-    }
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+public function up(): void
+{
+    Schema::create('packages', function (Blueprint $table) {
+        $table->id();
+        $table->string('name')->unique();
+        $table->string('code')->unique();
+        $table->string('speed_limit')->nullable();
+        $table->integer('download_speed')->default(0);
+        $table->integer('upload_speed')->default(0);
+        $table->integer('duration_days')->default(30);
+        $table->decimal('price', 10, 2)->default(0.00);
+        $table->text('description')->nullable();
+        $table->json('features')->nullable();
+        $table->boolean('is_active')->default(true);
+        $table->integer('sort_order')->default(0);
+        $table->string('mikrotik_profile_name')->nullable();
+        $table->softDeletes();
+        $table->timestamps();
+    }); // <-- THIS LINE WAS LIKELY MISSING OR INCORRECT
+}
 
-    public function down()
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
     {
         Schema::dropIfExists('packages');
     }

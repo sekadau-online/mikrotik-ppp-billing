@@ -3,73 +3,53 @@
 namespace App\Console\Commands;
 
 use App\Models\PppUser;
-use App\Services\MikrotikService;
+use App\Jobs\ProcessUserRestoration; // Import Job restorasi
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class RestorePaidUsers extends Command
 {
-    protected $signature = 'ppp:restore-paid';
-    protected $description = 'Restore PPP users whose balance is enough to pay for the package';
+    protected $signature = 'ppp:check-restore'; // Nama yang lebih jelas
+    protected $description = 'Checks for suspended users who can be restored due to sufficient balance.';
 
-    public function handle(MikrotikService $mikrotik)
+    public function handle()
     {
-        // Ambil semua user suspended beserta paketnya
-        $usersToRestore = PppUser::with('package')
+        $this->info("Memulai proses cek dan restorasi pengguna PPP...");
+
+        // Ambil semua user suspended yang memiliki paket
+        $usersToProcess = PppUser::with('package')
             ->where('status', 'suspended')
+            ->whereHas('package') // Pastikan user punya paket yang terhubung
             ->get();
 
-        if ($usersToRestore->isEmpty()) {
-            $this->info("No users to restore.");
+        if ($usersToProcess->isEmpty()) {
+            $this->info("Tidak ada pengguna suspended yang perlu diproses.");
             return;
         }
 
-        $restoredCount = 0;
+        $dispatchedCount = 0;
 
-        foreach ($usersToRestore as $user) {
-            $packagePrice = (float) ($user->package->price ?? 0); // Harga paket
-            $balance = (float) $user->balance; // Saldo user (pastikan float)
+        foreach ($usersToProcess as $user) {
+            // Pastikan user memiliki paket dan harga paket valid
+            if (!$user->package || !isset($user->package->price)) {
+                Log::channel('ppp')->warning("User {$user->username} suspended but has no valid package or package price. Skipping restoration check.");
+                continue;
+            }
 
-            info("Memeriksa user: {$user->username}, balance: {$balance}, harga paket: {$packagePrice}");
+            $packagePrice = (float) $user->package->price;
+            $balance = (float) $user->balance;
 
             if ($balance >= $packagePrice) {
-                try {
-                    $response = $mikrotik->restoreUser($user->username, $user->profile);
-
-                    if (isset($response['success']) && $response['success']) {
-                        $user->update([
-                            'status' => 'active',
-                            'restored_at' => now(),
-                            'expired_at' => now()->addDays($user->package->duration_days),
-                            'due_date' => now()->addDays($user->package->duration_days),
-                            'balance' => $balance - $packagePrice,
-                        ]);
-
-                        Log::channel('ppp')->info("User restored after sufficient balance", [
-                            'user_id' => $user->id,
-                            'username' => $user->username,
-                            'deducted' => $packagePrice,
-                            'remaining_balance' => $balance - $packagePrice,
-                        ]);
-
-                        $restoredCount++;
-                    } else {
-                        Log::channel('ppp')->warning("Mikrotik restoreUser response invalid", [
-                            'user_id' => $user->id,
-                            'response' => $response
-                        ]);
-                    }
-
-                    usleep(100000); // Delay 100ms
-                } catch (\Exception $e) {
-                    Log::channel('ppp')->error("Failed to restore user", [
-                        'user_id' => $user->id,
-                        'error' => $e->getMessage()
-                    ]);
-                }
+                // Dispatch Job untuk proses restorasi
+                ProcessUserRestoration::dispatch($user->id);
+                $this->info("Job restorasi dikirim untuk: {$user->username}");
+                $dispatchedCount++;
+            } else {
+                Log::channel('ppp')->info("User {$user->username} suspended but balance ({$balance}) is not yet sufficient for package price ({$packagePrice}).");
             }
         }
 
-        $this->info("Restored {$restoredCount} users who had sufficient balance.");
+        $this->info("Selesai. Total job restorasi yang dikirim: {$dispatchedCount}.");
     }
 }
