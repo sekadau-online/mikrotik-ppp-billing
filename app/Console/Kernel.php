@@ -14,12 +14,9 @@ class Kernel extends ConsoleKernel
     {
         // Jalankan sinkronisasi secret setiap menit
         $schedule->command('ppp:sync-secrets')->everyMinute()->withoutOverlapping();
+        $schedule->command(CheckPppUserStatus::class)->dailyAt('00:00'); // Sesuaikan waktu sesuai kebutuhan
 
-        // Jalankan pengecekan suspensi setiap 5 menit (atau sesuai kebutuhan)
-        $schedule->command('ppp:check-suspension')->everyFiveMinutes()->withoutOverlapping();
 
-        // Jalankan pengecekan restorasi setiap 5 menit (atau sesuai kebutuhan)
-        $schedule->command('ppp:check-restoration')->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**

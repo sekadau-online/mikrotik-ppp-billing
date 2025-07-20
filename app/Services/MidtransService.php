@@ -2,77 +2,78 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
-use Midtrans\Notification; // Pastikan ini di-import
-use Exception;
-use Illuminate\Support\Facades\Log;
+use Midtrans\Notification; // Assuming you have Midtrans PHP library installed
+use Exception; // Import Exception class
 
 class MidtransService
 {
     public function __construct()
     {
-        // Set your Merchant Server Key
+        // Set your Midtrans server key
         Config::$serverKey = config('services.midtrans.server_key');
-        // Set to Development/Sandbox Environment (default is false)
+        // Set to true for production, false for sandbox
         Config::$isProduction = config('services.midtrans.is_production');
-        // Set sanitization on (default is true)
+        // Set sanitization on (default)
         Config::$isSanitized = true;
-        // Set 3DS authentication on (default is false)
+        // Set 3DS authentication for credit card (default)
         Config::$is3ds = true;
     }
 
     /**
      * Create a Midtrans Snap transaction.
      *
-     * @param array $transactionDetails Array containing 'order_id' and 'gross_amount'.
-     * @param array $customerDetails Array containing customer information.
-     * @param array $itemDetails Optional array of items.
-     * @param array $callbacks Optional array of custom callback URLs.
-     * @return object An object with a 'token' property (Snap Token).
-     * @throws Exception If Snap token generation fails.
+     * @param array $transactionDetails Array containing 'order_id' and 'gross_amount'
+     * @param array $customerDetails Array of customer information
+     * @param array $itemDetails Array of items being purchased
+     * @param array $callbacks Array of callback URLs (finish, error, pending)
+     * @return object Midtrans Snap object (containing token)
+     * @throws \Exception
      */
-    public function createTransaction(array $transactionDetails, array $customerDetails, array $itemDetails = [], array $callbacks = [])
-    {
+    public function createTransaction(
+        array $transactionDetails,
+        array $customerDetails,
+        array $itemDetails,
+        array $callbacks
+    ): object {
         $params = [
             'transaction_details' => $transactionDetails,
-            'customer_details' => $customerDetails,
             'item_details' => $itemDetails,
-            'enabled_payments' => [
-                'credit_card', 'gopay', 'shopeepay', 'bank_transfer',
-                // Add other payment methods you want to enable
-            ],
-            // Merge custom callbacks if provided, otherwise use defaults from config
-            'callbacks' => array_merge([
-                'finish' => config('services.midtrans.redirect_finish'),
-                'error' => config('services.midtrans.redirect_error'),
-                'pending' => config('services.midtrans.redirect_pending'),
-            ], $callbacks)
+            'customer_details' => $customerDetails,
+            'callbacks' => $callbacks,
+            // 'enabled_payments' => ['gopay', 'permata_va', 'bca_va'], // Optional: specific payment methods
         ];
 
         try {
-            $snapToken = Snap::getSnapToken($params);
-            return (object)['token' => $snapToken]; // Return an object with token property
+            // Use Snap::createTransaction which returns a SnapToken object
+            $snap = Snap::createTransaction($params);
+            Log::info("Midtrans Snap token generated for Order ID: {$transactionDetails['order_id']}");
+            return $snap;
         } catch (Exception $e) {
-            Log::error("Midtrans Snap Token Generation Error: " . $e->getMessage() . " - " . $e->getFile() . " on line " . $e->getLine());
-            throw new Exception("Failed to create Midtrans transaction: " . $e->getMessage());
+            Log::error("Failed to create Midtrans Snap Token for Order ID {$transactionDetails['order_id']}: " . $e->getMessage());
+            throw new Exception("Failed to create Midtrans transaction: " . $e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Get Midtrans notification object.
+     * Get and verify Midtrans notification.
+     * This method automatically reads from php://input and verifies the signature.
      *
-     * @return Notification Midtrans Notification object.
-     * @throws Exception If notification initialization fails.
+     * @return Notification Midtrans Notification object
+     * @throws \Exception If notification verification fails
      */
-    public function getNotification()
+    public function getNotification(): Notification
     {
         try {
-            $notif = new Notification();
+            $notif = new Notification(); // This will automatically read the input and verify the signature
+
+            Log::info("Midtrans notification received and verified for Order ID: {$notif->order_id}");
             return $notif;
         } catch (Exception $e) {
-            Log::error("Midtrans Notification Init Error: " . $e->getMessage());
-            throw new Exception("Failed to process Midtrans notification: " . $e->getMessage());
+            Log::error("Failed to get or verify Midtrans notification: " . $e->getMessage());
+            throw new Exception("Failed to get or verify Midtrans notification: " . $e->getMessage(), 0, $e);
         }
     }
 }

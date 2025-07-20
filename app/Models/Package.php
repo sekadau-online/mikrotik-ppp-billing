@@ -10,10 +10,22 @@ class Package extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'packages';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'name',
-        'code', // Dari migrasi packages Anda
-        'speed_limit', // Dari migrasi packages Anda
+        'code',
+        'speed_limit',
         'download_speed',
         'upload_speed',
         'duration_days',
@@ -22,18 +34,29 @@ class Package extends Model
         'features',
         'is_active',
         'sort_order',
-        'mikrotik_profile_name', // <<< PASTIKAN INI ADA DI KOLOM TABLE PACKAGES
+        'mikrotik_profile_name',
     ];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
+        'download_speed' => 'integer',
+        'upload_speed' => 'integer',
+        'duration_days' => 'integer',
         'price' => 'decimal:2',
-        'features' => 'array', // Jika Anda ingin fitur di-cast sebagai array/JSON
+        'features' => 'array', // Cast JSON column to array
         'is_active' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
-    // Jika ada user yang terhubung ke paket ini (opsional, untuk relasi HasMany)
+    /**
+     * Get the PPP users for the package.
+     */
     public function pppUsers()
     {
-        return $this->hasMany(PppUser::class);
+        return $this->hasMany(PppUser::class, 'package_id');
     }
 }

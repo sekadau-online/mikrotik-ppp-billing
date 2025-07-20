@@ -151,5 +151,17 @@ return [
             'days' => 7,
             'formatter' => JsonFormatter::class,
         ],
+            'mikrotik' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/mikrotik.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+        ],
+        'mikrotik_api' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/mikrotik_api.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],  
     ],
 ];

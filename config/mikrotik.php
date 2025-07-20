@@ -7,4 +7,5 @@ return [
     'pass' => env('MIKROTIK_PASS', '12345'),
     'timeout' => (int) env('MIKROTIK_TIMEOUT', 10),
     'legacy' => false, // Add this for older RouterOS versions
+    'timeout' => (int) env('MIKROTIK_TIMEOUT', 10), // Timeout in seconds
 ];
