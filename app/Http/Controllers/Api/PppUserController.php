@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PppUser;
-use App\Models\Package;
+use App\Models\Package; // Pastikan model Package di-import
 use App\Services\MikrotikService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,26 +22,34 @@ class PppUserController extends Controller
     }
 
     /**
-     * Display a listing of PPP users with pagination
+     * Display a listing of PPP users with pagination,
+     * including search by username, phone, email, package name, and subscription status.
      */
     public function index(Request $request)
     {
+        // Eager load the package relationship and select specific columns
         $query = PppUser::with(['package' => function($query) {
             $query->select('id', 'name', 'price', 'duration_days');
         }]);
 
-        // Search filter
+        // Unified Search filter for username, phone, email, package name, and status
         if ($request->has('search')) {
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
                 $q->where('username', 'like', "%$search%")
                   ->orWhere('phone', 'like', "%$search%")
-                  ->orWhere('email', 'like', "%$search%");
+                  ->orWhere('email', 'like', "%$search%")
+                  // Search by package name
+                  ->orWhereHas('package', function ($qPackage) use ($search) {
+                      $qPackage->where('name', 'like', "%$search%");
+                  })
+                  // Search by subscription status (assuming 'status' column in PppUser serves this purpose)
+                  ->orWhere('status', 'like', "%$search%");
             });
         }
 
-        // Status filter
-        if ($request->has('status')) {
+        // Existing Status filter (can still be used for more specific filtering if needed)
+        if ($request->has('status') && !$request->has('search')) { // Only apply if 'search' is not present
             $query->where('status', $request->get('status'));
         }
 
